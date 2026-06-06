@@ -1,11 +1,11 @@
 # 🦖 Kaiju Wars
 
 A 3D browser game where you're a giant Kaiju hero **and** a space explorer. Stomp
-monsters, pilot ships, blast off in rockets, and travel a (real!) solar system —
+monsters, pilot ships, blast off in rockets, and travel the (real!) solar system: 
 the Moon, Mars, Saturn's moon Titan, a faraway star system, and **Mercury**, where
 you have to **program robots** to solve coding puzzles.
 
-Built by a 7-year-old (with help). It's a single `index.html` file using
+Built by a 7-year-old Kaiju superfan and hi mom. It's a single `index.html` file using
 [Three.js](https://threejs.org/) — no build step, no framework.
 
 ## ▶️ How to play
@@ -59,7 +59,7 @@ quests (Master Programmer, Loop Genius, Bug Squasher, A.I. Trainer). Progress
 saves automatically in the browser.
 
 ## 🚀 Deploying
-It's a static site, so any static host works (it's already played on Netlify).
+It's a static site, so any static host works (it's already played on Netlify at kaijuwars.netlify.app).
 For continuous deploy, connect this repo to Netlify/Vercel/GitHub Pages and serve
 the repo root — `index.html` is at the top level, with the `textures/` folder
 beside it. The fancy glow (bloom) and CDN copy of Three.js need internet; without
