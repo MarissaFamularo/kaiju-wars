@@ -42,21 +42,33 @@ New Star System (Zora) · **Mercury** · Neon Frontier (bonus).
 ## 🤖 Mercury — the coding world
 Mercury is too hot for people, so in real life **robots** explore it — so in the
 game you **program the robots**. Walk up to a glowing Robot Terminal and press
-**F** to solve a puzzle. The seven terminals each teach one computer-science idea:
+**F** to solve a puzzle. The **ten terminals** each teach one computer-science
+idea, and most now have **several levels/rounds that ramp up** in difficulty
+(so they're not over in a flash):
 
 | Terminal | Teaches |
 | --- | --- |
 | Move the Rover | Sequencing (step-by-step programs) |
 | Around the Crater | Turning & planning |
 | Loop Power | Loops (repeat instead of repeating yourself) |
+| Smart Sensors | Conditionals (IF / THEN decisions) |
 | Fix the Bug | Debugging |
+| Treasure Map | Coordinates (X across, Y up) |
 | Crack the Pattern | Patterns / sequences |
+| Sort the Crystals | Algorithms (sorting smallest → biggest) |
 | Train the Sorting Robot | A.I. / classification from examples |
 | Binary Code Lock | Binary (how computers count) |
 
-Solving terminals completes the **Reboot the Robots** mission plus four bonus side
-quests (Master Programmer, Loop Genius, Bug Squasher, A.I. Trainer). Progress
-saves automatically in the browser.
+### 🎓 Expert mode
+Each terminal has a **Difficulty** toggle (NORMAL / EXPERT 🔥). Flip it on for
+extra, harder levels and rounds — longer mazes, trickier patterns, 5-bit binary,
+multi-step IF/THEN — plus bonus coins. It's saved, so it stays on until you turn
+it off. Little kids can stay on NORMAL; bigger kids can chase EXPERT.
+
+Solving terminals completes the **Reboot the Robots** mission plus bonus side
+quests (Master Programmer = all 10, Loop Genius, Bug Squasher, A.I. Trainer, and
+**Expert Programmer** = beat all 10 in Expert mode). Progress saves automatically
+in the browser.
 
 ## 🚀 Deploying
 It's a static site, so any static host works (it's already played on Netlify at kaijuwars.netlify.app).

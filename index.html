@@ -121,6 +121,16 @@
         .ct-cell.goal { background:#15402a; box-shadow:inset 0 0 8px #3f9; }
         .ct-cell.robot { background:#1e3a52; box-shadow:inset 0 0 8px #6cf; }
         .ct-cell.bump { transform:scale(0.8) rotate(8deg); }
+        .ct-cell.clickable { cursor:pointer; }
+        .ct-cell.clickable:hover { box-shadow:inset 0 0 8px #ffd24a; transform:scale(1.06); }
+        /* coordinate axis labels */
+        .ct-axis { width:46px; height:46px; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:bold; color:#9cf; }
+        /* if/then rule card */
+        .ct-rule { background:rgba(60,40,90,0.35); border:2px solid #a8f; border-radius:10px; padding:9px 12px; font-size:15px; line-height:1.45; color:#e9dbff; text-align:center; }
+        /* expert toggle highlight */
+        .ct-btn.expert-on { background:linear-gradient(135deg,#cc5a1e,#f0a05c); }
+        /* sorting order badge */
+        .ct-ordernum { position:absolute; top:-8px; right:-8px; background:#5f9; color:#012; font-size:12px; font-weight:bold; border-radius:50%; width:20px; height:20px; line-height:20px; text-align:center; }
         /* program strip */
         #ct-program { min-height:42px; display:flex; flex-wrap:wrap; gap:5px; justify-content:center; align-items:center;
             background:rgba(0,0,0,0.3); border:2px dashed #2b5; border-radius:8px; padding:8px; margin:8px 0; }
@@ -513,6 +523,7 @@
             <span id="ct-concept">CONCEPT</span>
             <h2 id="ct-title">Robot Terminal</h2>
             <div id="ct-blurb"></div>
+            <div id="ct-expert-row" style="text-align:center; margin-bottom:10px;"></div>
             <div id="ct-body"></div>
             <div id="ct-msg"></div>
             <div style="text-align:center; margin-top:6px;">
@@ -804,10 +815,12 @@
         futuristic: [ { id: 'f_def',    icon: '👾', title: 'Neon Brawl',     desc: 'Defeat 6 enemies',             type: 'defeat',  target: 6, reward: 30 },
                       { id: 'f_gems',   icon: '💎', title: 'Neon Loot',      desc: 'Collect 5 crystals',           type: 'collect', target: 5, reward: 25 } ],
         // Mercury = the CODING world. These are tougher than the other planets'.
-        mercury:    [ { id: 'me_all',   icon: '🤖', title: 'Master Programmer', desc: 'Solve all 7 robot terminals', type: 'code',     target: 7, reward: 80 },
+        mercury:    [ { id: 'me_all',   icon: '🤖', title: 'Master Programmer', desc: 'Solve all 10 robot terminals', type: 'code',    target: 10, reward: 80 },
                       { id: 'me_loop',  icon: '🔁', title: 'Loop Genius',     desc: 'Beat the LOOP terminal',       type: 'codeLoop', target: 1, reward: 45 },
                       { id: 'me_debug', icon: '🐞', title: 'Bug Squasher',    desc: 'Fix the broken robot program', type: 'codeDebug',target: 1, reward: 45 },
-                      { id: 'me_ai',    icon: '🧠', title: 'A.I. Trainer',    desc: 'Teach the sorting robot',      type: 'codeAI',   target: 1, reward: 45 } ]
+                      { id: 'me_ai',    icon: '🧠', title: 'A.I. Trainer',    desc: 'Teach the sorting robot',      type: 'codeAI',   target: 1, reward: 45 },
+                      // The big one: only counts terminals beaten with EXPERT mode switched ON.
+                      { id: 'me_expert',icon: '🎓', title: 'Expert Programmer', desc: 'Solve all 10 terminals in EXPERT mode', type: 'codeExpert', target: 10, reward: 150 } ]
     };
 
     // ============================================================
@@ -817,36 +830,80 @@
     // 'maze' puzzles use a shared Lightbot-style rover engine (build a program,
     // press RUN, watch it step). The others are quick concept puzzles.
     // ============================================================
+    // Each terminal now has SEVERAL levels/rounds that ramp up, plus EXPERT extras
+    // (expertLevels / expertRounds / expertTargets / expertTests / expertBits) that
+    // are added on top when Expert mode is switched on. That way a little kid still
+    // gets a gentle start, but there's a lot more to chew through.
     const MERCURY_PUZZLES = [
         { id:'mp_seq', kind:'maze', concept:'SEQUENCE', title:'Move the Rover',
           blurb:'Coding means giving a robot step-by-step instructions, IN ORDER. Click commands to build a program, then press ▶ RUN to get the rover to the 🔋 battery.',
-          cols:5, rows:1, start:{c:0,r:0,dir:'E'}, goal:{c:4,r:0}, lava:[], allowLoop:false },
+          allowLoop:false,
+          levels:[ { cols:5, rows:1, start:{c:0,r:0,dir:'E'}, goal:{c:4,r:0}, lava:[] },
+                   { cols:7, rows:1, start:{c:0,r:0,dir:'E'}, goal:{c:6,r:0}, lava:[] },
+                   { cols:9, rows:1, start:{c:0,r:0,dir:'E'}, goal:{c:8,r:0}, lava:[] } ],
+          expertLevels:[ { cols:12, rows:1, start:{c:0,r:0,dir:'E'}, goal:{c:11,r:0}, lava:[] },
+                         { cols:15, rows:1, start:{c:0,r:0,dir:'E'}, goal:{c:14,r:0}, lava:[] } ] },
         { id:'mp_turn', kind:'maze', concept:'TURNING', title:'Around the Crater',
           blurb:'Robots do EXACTLY what you say — no more, no less. You must TURN before you can go a new way. Plan each step around the 🌋 lava!',
-          cols:5, rows:5, start:{c:0,r:4,dir:'E'}, goal:{c:4,r:0}, lava:[[2,4],[2,3],[2,1]], allowLoop:false },
+          allowLoop:false,
+          levels:[ { cols:5, rows:5, start:{c:0,r:4,dir:'E'}, goal:{c:4,r:0}, lava:[[2,4],[2,3],[2,1]] },
+                   { cols:5, rows:5, start:{c:0,r:0,dir:'E'}, goal:{c:4,r:4}, lava:[[1,1],[3,1],[1,3],[3,3]] },
+                   { cols:6, rows:3, start:{c:0,r:0,dir:'E'}, goal:{c:0,r:2}, lava:[[0,1]] } ],
+          expertLevels:[ { cols:7, rows:7, start:{c:0,r:6,dir:'E'}, goal:{c:6,r:0}, lava:[[2,6],[2,5],[2,4],[4,2],[4,1],[4,0]] } ] },
         { id:'mp_loop', kind:'maze', concept:'LOOPS', title:'Loop Power', special:'codeLoop',
-          blurb:'A LOOP repeats steps so you don\'t write the same thing over and over. The battery is FAR. Add ONE ⬆️ Forward, then set 🔁 Repeat to a big number!',
-          cols:6, rows:1, start:{c:0,r:0,dir:'E'}, goal:{c:5,r:0}, lava:[], allowLoop:true },
+          blurb:'A LOOP repeats steps so you don\'t write the same thing over and over. The battery is FAR. Add a few ⬆️ Forward steps, then set 🔁 Repeat to a big number!',
+          allowLoop:true,
+          levels:[ { cols:6, rows:1, start:{c:0,r:0,dir:'E'}, goal:{c:5,r:0}, lava:[] },
+                   { cols:9, rows:1, start:{c:0,r:0,dir:'E'}, goal:{c:8,r:0}, lava:[] },
+                   { cols:13, rows:1, start:{c:0,r:0,dir:'E'}, goal:{c:12,r:0}, lava:[] } ],
+          expertLevels:[ { cols:17, rows:1, start:{c:0,r:0,dir:'E'}, goal:{c:16,r:0}, lava:[] },
+                         { cols:21, rows:1, start:{c:0,r:0,dir:'E'}, goal:{c:20,r:0}, lava:[] } ] },
+        { id:'mp_cond', kind:'cond', concept:'IF / THEN', title:'Smart Sensors',
+          blurb:'Code can make DECISIONS with IF / THEN. Read the rule, look at what the robot SEES with its sensor, then pick what it should DO.',
+          rounds:[ { rule:'IF you see a 🪨 rock → ↪️ Turn.  ELSE → ⬆️ Forward.', sees:'🪨', choices:['↪️ Turn','⬆️ Forward'], answer:'↪️ Turn' },
+                   { rule:'IF you see a 🪨 rock → ↪️ Turn.  ELSE → ⬆️ Forward.', sees:'⬜', choices:['↪️ Turn','⬆️ Forward'], answer:'⬆️ Forward' },
+                   { rule:'IF the battery 🔋 is LOW → ☀️ Charge.  ELSE → 🚀 Explore.', sees:'🔋 LOW', choices:['☀️ Charge','🚀 Explore'], answer:'☀️ Charge' },
+                   { rule:'IF the traffic light 🚦 is RED → 🛑 Stop.  ELSE → ✅ Go.', sees:'🟢 GREEN', choices:['🛑 Stop','✅ Go'], answer:'✅ Go' } ],
+          expertRounds:[ { rule:'IF it is 🔥 hot AND there is NO shade → 🛑 Stop.  (sensor: 🔥 hot, no shade)', sees:'🔥 hot · no shade', choices:['🛑 Stop','🚀 Go'], answer:'🛑 Stop' },
+                         { rule:'IF crater ahead → 🦘 Jump.  ELSE IF 🪨 rock → ↪️ Turn.  ELSE → ⬆️ Forward.  (sensor: 🪨 rock)', sees:'🪨 rock', choices:['🦘 Jump','↪️ Turn','⬆️ Forward'], answer:'↪️ Turn' } ] },
         { id:'mp_debug', kind:'maze', concept:'DEBUGGING', title:'Fix the Bug', special:'codeDebug',
-          blurb:'A BUG is a mistake in the code. This program is ALMOST right — one turn goes the WRONG way so the rover crashes. Use ⏪ Undo to fix it, then RUN. That is DEBUGGING!',
-          cols:5, rows:3, start:{c:0,r:2,dir:'E'}, goal:{c:4,r:0}, lava:[[1,0],[2,1]],
-          preset:['F','F','F','F','R','F','F'], allowLoop:false },
+          blurb:'A BUG is a mistake in the code. These programs are ALMOST right — a turn goes the WRONG way so the rover crashes. Use ⏪ Undo to fix it, then RUN. That is DEBUGGING!',
+          allowLoop:false,
+          levels:[ { cols:5, rows:3, start:{c:0,r:2,dir:'E'}, goal:{c:4,r:0}, lava:[[1,0],[2,1]], preset:['F','F','F','F','R','F','F'] },
+                   { cols:5, rows:5, start:{c:0,r:4,dir:'E'}, goal:{c:4,r:0}, lava:[[2,4],[2,3],[2,1]], preset:['L','F','F','F','F','L','F','F','F','F'] },
+                   { cols:6, rows:3, start:{c:0,r:0,dir:'E'}, goal:{c:0,r:2}, lava:[[0,1]], preset:['F','F','F','F','F','L','F','F','L','F','F','F','F','F'] } ],
+          expertLevels:[ { cols:7, rows:7, start:{c:0,r:6,dir:'E'}, goal:{c:6,r:0}, lava:[[2,6],[2,5],[2,4],[4,2],[4,1],[4,0]], preset:['L','F','F','F','R','F','F','F','F','F','F','R','F','F','F'] } ] },
+        { id:'mp_coord', kind:'coords', concept:'COORDINATES', title:'Treasure Map',
+          blurb:'Computers find a spot using COORDINATES: count ACROSS first (X →), then UP (Y ↑). Click the square at the X,Y you are given to dig up the 💎!',
+          rounds:[ {cols:4,rows:4,x:2,y:1}, {cols:5,rows:5,x:4,y:3}, {cols:5,rows:5,x:0,y:4}, {cols:6,rows:6,x:5,y:2} ],
+          expertRounds:[ {cols:7,rows:7,x:6,y:5}, {cols:8,rows:8,x:3,y:7} ] },
         { id:'mp_pat', kind:'predict', concept:'PATTERNS', title:'Crack the Pattern',
           blurb:'Computers (and A.I.) are amazing at spotting PATTERNS. Figure out the rule, then pick what comes next.',
           rounds:[ { seq:['2','4','6','8','?'], choices:['9','10','12'], answer:'10' },
                    { seq:['🔺','🟦','🔺','🟦','?'], choices:['🟦','🔺','🟢'], answer:'🔺' },
-                   { seq:['1','2','4','8','?'], choices:['10','16','12'], answer:'16' } ] },
+                   { seq:['1','2','4','8','?'], choices:['10','16','12'], answer:'16' },
+                   { seq:['5','10','15','20','?'], choices:['25','30','24'], answer:'25' },
+                   { seq:['🔴','🟡','🟢','🔴','🟡','?'], choices:['🔴','🟢','🟡'], answer:'🟢' } ],
+          expertRounds:[ { seq:['1','1','2','3','5','?'], choices:['7','8','6'], answer:'8' },
+                         { seq:['1','4','9','16','?'], choices:['20','25','24'], answer:'25' },
+                         { seq:['81','27','9','3','?'], choices:['1','2','0'], answer:'1' } ] },
+        { id:'mp_sort', kind:'order', concept:'SORTING', title:'Sort the Crystals',
+          blurb:'An ALGORITHM is a set of steps that solves a problem. Use the sorting algorithm: click the crystals in order from the SMALLEST number to the BIGGEST.',
+          rounds:[ {items:[3,1,2]}, {items:[5,2,8,1]}, {items:[12,4,9,7,1]} ],
+          expertRounds:[ {items:[23,9,31,5,17,12]}, {items:[8,3,15,1,20,11,6]} ] },
         { id:'mp_ai', kind:'classify', concept:'A.I. TRAINING', special:'codeAI', title:'Train the Sorting Robot',
           blurb:'A.I. learns from EXAMPLES. Study how the examples are sorted, then sort the NEW shapes the same way. Round shapes go in ⚪, pointy shapes go in 🔺.',
           examples:[ {s:'●', bin:'round'}, {s:'⬤', bin:'round'}, {s:'▲', bin:'pointy'}, {s:'◆', bin:'pointy'} ],
-          tests:[ {s:'⬟', bin:'pointy'}, {s:'⚫', bin:'round'}, {s:'★', bin:'pointy'}, {s:'🔵', bin:'round'} ] },
+          tests:[ {s:'⬟', bin:'pointy'}, {s:'⚫', bin:'round'}, {s:'★', bin:'pointy'}, {s:'🔵', bin:'round'} ],
+          expertTests:[ {s:'⬢', bin:'pointy'}, {s:'🟠', bin:'round'}, {s:'🔶', bin:'pointy'}, {s:'⬮', bin:'round'} ] },
         { id:'mp_bin', kind:'binary', concept:'BINARY', title:'Binary Code Lock',
           blurb:'Computers count using only 0s and 1s — that is BINARY! Each switch is worth a number. Flip switches so they ADD UP to the target.',
-          targets:[13, 10, 7] }
+          targets:[13, 10, 7, 5, 14],
+          expertBits:[16, 8, 4, 2, 1], expertTargets:[19, 27, 22, 31] }
     ];
     function puzzleById(id){ return MERCURY_PUZZLES.find(p => p.id === id); }
 
-    function defaultProgress() { return { completed: [], unlockedWorlds: ['city', 'launch', 'futuristic'], sideDone: [], puzzlesSolved: [] }; }
+    function defaultProgress() { return { completed: [], unlockedWorlds: ['city', 'launch', 'futuristic'], sideDone: [], puzzlesSolved: [], puzzlesSolvedExpert: [], expert: false }; }
     let progress = defaultProgress();
     function loadProgress() {
         try {
@@ -855,6 +912,8 @@
         } catch (e) { /* private mode etc -- just use defaults */ }
         if (!progress.sideDone) progress.sideDone = [];
         if (!progress.puzzlesSolved) progress.puzzlesSolved = [];
+        if (!progress.puzzlesSolvedExpert) progress.puzzlesSolvedExpert = [];
+        if (typeof progress.expert !== 'boolean') progress.expert = false;
         // Make sure the always-open worlds are present.
         ['city', 'launch', 'futuristic'].forEach(w => { if (!progress.unlockedWorlds.includes(w)) progress.unlockedWorlds.push(w); });
         // Re-derive unlocks from completed missions. This way, when a NEW world is
@@ -879,7 +938,7 @@
     let activeSideQuests = [];    // side quests live this visit (with .done flag)
     function resetWorldStats(world) {
         worldStats = { defeat: 0, collect: 0, stomp: 0, jump: 0, base: 0, ride: 0, detonator: 0, reach: 0,
-                       code: 0, codeLoop: 0, codeDebug: 0, codeAI: 0 };
+                       code: 0, codeLoop: 0, codeDebug: 0, codeAI: 0, codeExpert: 0 };
         activeWorld = world;
         const list = SIDE_QUESTS[world] || [];
         activeSideQuests = list.map(q => Object.assign({}, q, { done: progress.sideDone.includes(q.id) }));
@@ -891,6 +950,7 @@
                     worldStats.code++;
                     if (p.special) worldStats[p.special] = (worldStats[p.special] || 0) + 1;
                 }
+                if (progress.puzzlesSolvedExpert.includes(p.id)) worldStats.codeExpert++;
             });
         }
     }
@@ -3985,7 +4045,9 @@
     // ============================================================
     let codeState = { open: false, puzzle: null, kind: null, program: [], loopN: 1,
                       running: false, stepTimer: null, predictRound: 0, aiDone: [],
-                      bits: [0, 0, 0, 0], binRound: 0 };
+                      bits: [0, 0, 0, 0], binRound: 0, expert: false,
+                      mazeLevel: 0, predictList: [], testsList: [], bitVals: [8, 4, 2, 1], targetsList: [],
+                      coordRound: 0, coordList: [], condRound: 0, condList: [], sortPicked: [], sortList: [] };
     const BIT_VALS = [8, 4, 2, 1];
     const DC = { N: 0, E: 1, S: 0, W: -1 }, DR = { N: -1, E: 0, S: 1, W: 0 };
     const TURN_ORDER = ['N', 'E', 'S', 'W'];
@@ -4001,6 +4063,7 @@
 
     function openCodeTerminal(puzzle) {
         codeState.open = true; codeState.puzzle = puzzle; codeState.running = false;
+        codeState.expert = !!progress.expert;
         if (codeState.stepTimer) { clearInterval(codeState.stepTimer); codeState.stepTimer = null; }
         document.getElementById('code-terminal').style.display = 'flex';
         if (document.pointerLockElement) document.exitPointerLock();
@@ -4008,7 +4071,24 @@
         document.getElementById('ct-title').textContent = puzzle.title;
         document.getElementById('ct-blurb').textContent = puzzle.blurb;
         ctMsg('');
+        renderExpertToggle();
         setupPuzzle(puzzle);
+    }
+    // EXPERT MODE: a sticky toggle (saved) that adds harder levels & extra rounds to
+    // every terminal. Flipping it re-loads the current puzzle at the new difficulty.
+    function renderExpertToggle() {
+        const row = document.getElementById('ct-expert-row');
+        if (!row) return;
+        row.innerHTML = '🎓 Difficulty: <button class="ct-btn alt' + (codeState.expert ? ' expert-on' : '') + '" onclick="toggleExpert()">' +
+            (codeState.expert ? 'EXPERT 🔥' : 'NORMAL 🙂') + '</button>' +
+            '<span style="font-size:12px;color:#9cf;margin-left:6px">' + (codeState.expert ? 'harder levels + bonus 🪙' : 'tap for a bigger challenge') + '</span>';
+    }
+    function toggleExpert() {
+        codeState.expert = !codeState.expert;
+        progress.expert = codeState.expert; saveProgress();
+        renderExpertToggle();
+        ctMsg(codeState.expert ? '🔥 EXPERT mode ON — extra levels & rounds, +15 🪙 each!' : 'Back to NORMAL mode. 🙂', '#ffd24a');
+        if (codeState.puzzle) setupPuzzle(codeState.puzzle);
     }
     function closeCodeTerminal() {
         codeState.open = false;
@@ -4027,16 +4107,20 @@
         else if (p.kind === 'predict') setupPredict(p, body, runBtn, resetBtn);
         else if (p.kind === 'classify') setupClassify(p, body, runBtn, resetBtn);
         else if (p.kind === 'binary') setupBinary(p, body, runBtn, resetBtn);
+        else if (p.kind === 'coords') setupCoords(p, body, runBtn, resetBtn);
+        else if (p.kind === 'cond') setupCond(p, body, runBtn, resetBtn);
+        else if (p.kind === 'order') setupOrder(p, body, runBtn, resetBtn);
     }
 
     // ---- shared "solved!" handling ----
     function recomputeMercuryStats() {
-        worldStats.code = 0; worldStats.codeLoop = 0; worldStats.codeDebug = 0; worldStats.codeAI = 0;
+        worldStats.code = 0; worldStats.codeLoop = 0; worldStats.codeDebug = 0; worldStats.codeAI = 0; worldStats.codeExpert = 0;
         MERCURY_PUZZLES.forEach(p => {
             if (progress.puzzlesSolved.includes(p.id)) {
                 worldStats.code++;
                 if (p.special) worldStats[p.special] = (worldStats[p.special] || 0) + 1;
             }
+            if (progress.puzzlesSolvedExpert.includes(p.id)) worldStats.codeExpert++;
         });
     }
     function solvePuzzle(p) {
@@ -4044,7 +4128,10 @@
         codeState.running = false;
         const firstTime = !progress.puzzlesSolved.includes(p.id);
         if (firstTime) { progress.puzzlesSolved.push(p.id); saveProgress(); addCoinsSilent(10); }
-        ctMsg('✅ SOLVED! ' + (firstTime ? '+10 🪙' : 'Great coding!'), '#7fffe0');
+        // Beating a terminal with Expert mode ON earns a bonus and counts toward Expert Programmer.
+        const firstExpert = codeState.expert && !progress.puzzlesSolvedExpert.includes(p.id);
+        if (firstExpert) { progress.puzzlesSolvedExpert.push(p.id); saveProgress(); addCoinsSilent(15); }
+        ctMsg('✅ SOLVED! ' + (firstExpert ? '🎓 Expert +15 🪙' : (firstTime ? '+10 🪙' : 'Great coding!')), '#7fffe0');
         // turn the terminal green
         const term = world.codeTerminals.find(t => t.userData.puzzle.id === p.id);
         if (term) { term.userData.solved = true; [term.userData.screen, term.userData.screenGlow, term.userData.beam].forEach(m => { if (m && m.material) m.material.color.setHex(0x44ff99); }); }
@@ -4056,14 +4143,22 @@
     }
 
     // ================= MAZE (sequence / turns / loops / debug) =================
-    function paintGrid(p, robot, bump) {
+    // Each maze puzzle is a SEQUENCE of levels (p.levels). In Expert mode the harder
+    // p.expertLevels are appended on the end, so finishing a terminal takes longer.
+    function mazeLevelsFor(p) {
+        let ls = p.levels ? p.levels.slice() : [p];
+        if (codeState.expert && p.expertLevels) ls = ls.concat(p.expertLevels);
+        return ls;
+    }
+    function curMazeLevel(p) { return mazeLevelsFor(p)[codeState.mazeLevel]; }
+    function paintGrid(lv, robot, bump) {
         const grid = document.getElementById('ct-grid');
         if (!grid) return;
         let html = '';
-        for (let r = 0; r < p.rows; r++) for (let c = 0; c < p.cols; c++) {
+        for (let r = 0; r < lv.rows; r++) for (let c = 0; c < lv.cols; c++) {
             let cls = 'ct-cell', content = '';
-            if ((p.lava || []).some(L => L[0] === c && L[1] === r)) { cls += ' lava'; content = '🌋'; }
-            if (p.goal.c === c && p.goal.r === r) { cls += ' goal'; content = '🔋'; }
+            if ((lv.lava || []).some(L => L[0] === c && L[1] === r)) { cls += ' lava'; content = '🌋'; }
+            if (lv.goal.c === c && lv.goal.r === r) { cls += ' goal'; content = '🔋'; }
             if (robot.c === c && robot.r === r) { cls += ' robot' + (bump ? ' bump' : ''); content = '🤖' + dirArrow(robot.dir); }
             html += '<div class="' + cls + '">' + content + '</div>';
         }
@@ -4077,9 +4172,19 @@
             '<span class="ct-cmd' + (i === activeIdx ? ' active' : '') + '">' + CMD_EMOJI[c] + '</span>').join('');
     }
     function setupMaze(p, body, runBtn, resetBtn) {
-        codeState.program = p.preset ? p.preset.slice() : [];
+        codeState.mazeLevel = 0;
+        buildMazeUI(p);
+    }
+    function buildMazeUI(p) {
+        const body = document.getElementById('ct-body');
+        const runBtn = document.getElementById('ct-run'), resetBtn = document.getElementById('ct-reset');
+        const levels = mazeLevelsFor(p);
+        const lv = curMazeLevel(p);
+        codeState.program = lv.preset ? lv.preset.slice() : [];
         codeState.loopN = 1;
-        let html = '<div id="ct-grid" style="grid-template-columns:repeat(' + p.cols + ',46px)"></div>';
+        let html = '';
+        if (levels.length > 1) html += '<div style="text-align:center;color:#9cf;margin-bottom:4px">Level ' + (codeState.mazeLevel + 1) + ' of ' + levels.length + '</div>';
+        html += '<div id="ct-grid" style="grid-template-columns:repeat(' + lv.cols + ',46px)"></div>';
         html += '<div id="ct-program"></div>';
         html += '<div class="ct-palette">';
         html += '<button class="ct-btn" onclick="mazeAdd(\'F\')">⬆️ Forward</button>';
@@ -4091,23 +4196,24 @@
         body.innerHTML = html;
         runBtn.style.display = 'inline-block'; resetBtn.style.display = 'inline-block';
         runBtn.onclick = runMaze;
-        resetBtn.onclick = () => { codeState.program = p.preset ? p.preset.slice() : []; codeState.loopN = 1; const ln = document.getElementById('ct-loopn'); if (ln) ln.textContent = '1'; ctMsg(''); paintGrid(p, { c: p.start.c, r: p.start.r, dir: p.start.dir }); renderProgram(); };
-        paintGrid(p, { c: p.start.c, r: p.start.r, dir: p.start.dir });
+        resetBtn.onclick = () => { const l = curMazeLevel(p); codeState.program = l.preset ? l.preset.slice() : []; codeState.loopN = 1; const ln = document.getElementById('ct-loopn'); if (ln) ln.textContent = '1'; ctMsg(''); paintGrid(l, { c: l.start.c, r: l.start.r, dir: l.start.dir }); renderProgram(); };
+        paintGrid(lv, { c: lv.start.c, r: lv.start.r, dir: lv.start.dir });
         renderProgram();
     }
     function mazeAdd(cmd) { if (codeState.running) return; codeState.program.push(cmd); renderProgram(); }
     function mazeUndo() { if (codeState.running) return; codeState.program.pop(); renderProgram(); }
-    function mazeLoop(d) { codeState.loopN = Math.max(1, Math.min(8, codeState.loopN + d)); const ln = document.getElementById('ct-loopn'); if (ln) ln.textContent = codeState.loopN; }
+    function mazeLoop(d) { codeState.loopN = Math.max(1, Math.min(12, codeState.loopN + d)); const ln = document.getElementById('ct-loopn'); if (ln) ln.textContent = codeState.loopN; }
     function turnDir(dir, d) { return TURN_ORDER[(TURN_ORDER.indexOf(dir) + d + 4) % 4]; }
     function runMaze() {
         const p = codeState.puzzle;
         if (codeState.running) return;
+        const lv = curMazeLevel(p);
         const cmds = [];
         for (let k = 0; k < codeState.loopN; k++) cmds.push(...codeState.program);
         if (!cmds.length) { ctMsg('Add some commands first! 🙂', '#ffd24a'); return; }
         codeState.running = true;
-        let robot = { c: p.start.c, r: p.start.r, dir: p.start.dir };
-        paintGrid(p, robot); ctMsg('Running your code… ▶', '#7fffe0');
+        let robot = { c: lv.start.c, r: lv.start.r, dir: lv.start.dir };
+        paintGrid(lv, robot); ctMsg('Running your code… ▶', '#7fffe0');
         let idx = 0;
         codeState.stepTimer = setInterval(() => {
             if (idx >= cmds.length) {
@@ -4121,19 +4227,27 @@
             else if (cmd === 'R') robot.dir = turnDir(robot.dir, 1);
             else {
                 const nc = robot.c + DC[robot.dir], nr = robot.r + DR[robot.dir];
-                const blocked = nc < 0 || nc >= p.cols || nr < 0 || nr >= p.rows || (p.lava || []).some(L => L[0] === nc && L[1] === nr);
+                const blocked = nc < 0 || nc >= lv.cols || nr < 0 || nr >= lv.rows || (lv.lava || []).some(L => L[0] === nc && L[1] === nr);
                 if (blocked) {
-                    paintGrid(p, robot, true);
+                    paintGrid(lv, robot, true);
                     clearInterval(codeState.stepTimer); codeState.stepTimer = null; codeState.running = false;
                     ctMsg('💥 Crash! The rover hit a wall or lava. Press ↺ Reset and rethink the steps.', '#ff7766');
                     return;
                 }
                 robot.c = nc; robot.r = nr;
             }
-            paintGrid(p, robot);
-            if (robot.c === p.goal.c && robot.r === p.goal.r) {
-                clearInterval(codeState.stepTimer); codeState.stepTimer = null;
-                solvePuzzle(p); return;
+            paintGrid(lv, robot);
+            if (robot.c === lv.goal.c && robot.r === lv.goal.r) {
+                clearInterval(codeState.stepTimer); codeState.stepTimer = null; codeState.running = false;
+                const levels = mazeLevelsFor(p);
+                if (codeState.mazeLevel < levels.length - 1) {
+                    codeState.mazeLevel++;
+                    ctMsg('✔ Level ' + codeState.mazeLevel + ' done! Next level…', '#7fffe0');
+                    setTimeout(() => { if (codeState.open) buildMazeUI(p); }, 850);
+                } else {
+                    solvePuzzle(p);
+                }
+                return;
             }
             idx++;
         }, 430);
@@ -4142,21 +4256,22 @@
     // ================= PREDICT (patterns) =================
     function setupPredict(p, body, runBtn, resetBtn) {
         codeState.predictRound = 0;
+        codeState.predictList = p.rounds.concat(codeState.expert && p.expertRounds ? p.expertRounds : []);
         renderPredict(p);
     }
     function renderPredict(p) {
         const body = document.getElementById('ct-body');
-        const round = p.rounds[codeState.predictRound];
-        let html = '<div style="text-align:center;color:#9cf;margin-bottom:4px">Pattern ' + (codeState.predictRound + 1) + ' of ' + p.rounds.length + '</div>';
+        const round = codeState.predictList[codeState.predictRound];
+        let html = '<div style="text-align:center;color:#9cf;margin-bottom:4px">Pattern ' + (codeState.predictRound + 1) + ' of ' + codeState.predictList.length + '</div>';
         html += '<div class="ct-bigrow">' + round.seq.map(s => s === '?' ? '<span class="ct-slot">?</span>' : '<span>' + s + '</span>').join('') + '</div>';
         html += '<div style="text-align:center;font-size:14px;color:#bfe">What comes next?</div>';
         html += '<div class="ct-bigrow">' + round.choices.map((c, i) => '<button class="ct-choice" id="ct-ch' + i + '" onclick="predictPick(' + i + ')">' + c + '</button>').join('') + '</div>';
         body.innerHTML = html;
     }
     function predictPick(i) {
-        const p = codeState.puzzle, round = p.rounds[codeState.predictRound];
+        const p = codeState.puzzle, round = codeState.predictList[codeState.predictRound];
         if (round.choices[i] === round.answer) {
-            if (codeState.predictRound >= p.rounds.length - 1) { solvePuzzle(p); }
+            if (codeState.predictRound >= codeState.predictList.length - 1) { solvePuzzle(p); }
             else { codeState.predictRound++; ctMsg('✔ Correct! Next pattern…', '#7fffe0'); setTimeout(() => renderPredict(p), 700); }
         } else {
             const btn = document.getElementById('ct-ch' + i); if (btn) { btn.classList.add('bad'); setTimeout(() => btn.classList.remove('bad'), 700); }
@@ -4166,9 +4281,10 @@
 
     // ================= CLASSIFY (A.I. training) =================
     function setupClassify(p, body, runBtn, resetBtn) {
-        codeState.aiDone = new Array(p.tests.length).fill(false);
+        codeState.testsList = p.tests.concat(codeState.expert && p.expertTests ? p.expertTests : []);
+        codeState.aiDone = new Array(codeState.testsList.length).fill(false);
         resetBtn.style.display = 'inline-block';
-        resetBtn.onclick = () => { codeState.aiDone = new Array(p.tests.length).fill(false); ctMsg(''); renderClassify(p); };
+        resetBtn.onclick = () => { codeState.aiDone = new Array(codeState.testsList.length).fill(false); ctMsg(''); renderClassify(p); };
         renderClassify(p);
     }
     function renderClassify(p) {
@@ -4182,7 +4298,7 @@
         html += '</div>';
         html += '<div style="text-align:center;font-size:13px;color:#bfe;margin:6px 0">Now YOU sort these new shapes:</div>';
         html += '<div class="ct-bigrow">';
-        p.tests.forEach((t, i) => {
+        codeState.testsList.forEach((t, i) => {
             if (codeState.aiDone[i]) {
                 html += '<div style="text-align:center"><div class="ct-slot good">' + t.s + '</div><div style="font-size:11px;color:#5f9">✓ ' + (t.bin === 'round' ? '⚪' : '🔺') + '</div></div>';
             } else {
@@ -4195,7 +4311,7 @@
         body.innerHTML = html;
     }
     function aiPick(i, bin) {
-        const p = codeState.puzzle, t = p.tests[i];
+        const p = codeState.puzzle, t = codeState.testsList[i];
         if (t.bin === bin) {
             codeState.aiDone[i] = true;
             if (codeState.aiDone.every(Boolean)) { renderClassify(p); solvePuzzle(p); }
@@ -4206,21 +4322,25 @@
     }
 
     // ================= BINARY =================
+    // Expert mode adds a 5th switch (16) and bigger targets, so numbers go up to 31.
     function setupBinary(p, body, runBtn, resetBtn) {
-        codeState.binRound = 0; codeState.bits = [0, 0, 0, 0];
+        codeState.binRound = 0;
+        codeState.bitVals = (codeState.expert && p.expertBits) ? p.expertBits.slice() : (p.bits ? p.bits.slice() : BIT_VALS.slice());
+        codeState.targetsList = (p.targets || []).concat(codeState.expert && p.expertTargets ? p.expertTargets : []);
+        codeState.bits = codeState.bitVals.map(() => 0);
         resetBtn.style.display = 'inline-block';
-        resetBtn.onclick = () => { codeState.bits = [0, 0, 0, 0]; ctMsg(''); renderBinary(p); };
+        resetBtn.onclick = () => { codeState.bits = codeState.bitVals.map(() => 0); ctMsg(''); renderBinary(p); };
         renderBinary(p);
     }
-    function binSum() { return codeState.bits.reduce((s, b, i) => s + (b ? BIT_VALS[i] : 0), 0); }
+    function binSum() { return codeState.bits.reduce((s, b, i) => s + (b ? codeState.bitVals[i] : 0), 0); }
     function renderBinary(p) {
         const body = document.getElementById('ct-body');
-        const target = p.targets[codeState.binRound];
-        let html = '<div style="text-align:center;color:#9cf;margin-bottom:4px">Number ' + (codeState.binRound + 1) + ' of ' + p.targets.length + '</div>';
+        const target = codeState.targetsList[codeState.binRound];
+        let html = '<div style="text-align:center;color:#9cf;margin-bottom:4px">Number ' + (codeState.binRound + 1) + ' of ' + codeState.targetsList.length + '</div>';
         html += '<div style="text-align:center;font-size:20px;margin-bottom:6px">Make this number: <b style="color:#ffd24a;font-size:26px">' + target + '</b></div>';
         html += '<div style="text-align:center">';
         codeState.bits.forEach((b, i) => {
-            html += '<span class="ct-bit" onclick="binToggle(' + i + ')"><span class="lamp">' + (b ? '💡' : '⚫') + '</span><span class="val">' + BIT_VALS[i] + '</span><span class="val">' + b + '</span></span>';
+            html += '<span class="ct-bit" onclick="binToggle(' + i + ')"><span class="lamp">' + (b ? '💡' : '⚫') + '</span><span class="val">' + codeState.bitVals[i] + '</span><span class="val">' + b + '</span></span>';
         });
         html += '</div>';
         const sum = binSum();
@@ -4231,9 +4351,120 @@
         const p = codeState.puzzle;
         codeState.bits[i] ^= 1;
         renderBinary(p);
-        if (binSum() === p.targets[codeState.binRound]) {
-            if (codeState.binRound >= p.targets.length - 1) { solvePuzzle(p); }
-            else { codeState.binRound++; codeState.bits = [0, 0, 0, 0]; ctMsg('✔ Yes! Next number…', '#7fffe0'); setTimeout(() => renderBinary(p), 800); }
+        if (binSum() === codeState.targetsList[codeState.binRound]) {
+            if (codeState.binRound >= codeState.targetsList.length - 1) { solvePuzzle(p); }
+            else { codeState.binRound++; codeState.bits = codeState.bitVals.map(() => 0); ctMsg('✔ Yes! Next number…', '#7fffe0'); setTimeout(() => renderBinary(p), 800); }
+        }
+    }
+
+    // ================= COORDINATES (Treasure Map) =================
+    // Click the cell at the given (X across, Y up). Y is drawn bottom-to-top, so the
+    // grid row index = rows-1-y. Multi-round; Expert adds bigger grids.
+    function setupCoords(p, body, runBtn, resetBtn) {
+        codeState.coordRound = 0;
+        codeState.coordList = p.rounds.concat(codeState.expert && p.expertRounds ? p.expertRounds : []);
+        renderCoords(p);
+    }
+    function renderCoords(p) {
+        const body = document.getElementById('ct-body');
+        const rd = codeState.coordList[codeState.coordRound];
+        let html = '<div style="text-align:center;color:#9cf;margin-bottom:4px">Treasure ' + (codeState.coordRound + 1) + ' of ' + codeState.coordList.length + '</div>';
+        html += '<div style="text-align:center;font-size:19px;margin-bottom:6px">Dig at <b style="color:#ffd24a">X = ' + rd.x + '</b>, <b style="color:#7fffe0">Y = ' + rd.y + '</b></div>';
+        // grid + a left Y axis column
+        html += '<div style="display:flex;justify-content:center;align-items:flex-start;gap:4px">';
+        html += '<div style="display:flex;flex-direction:column;gap:3px">';
+        for (let r = 0; r < rd.rows; r++) html += '<div class="ct-axis">' + (rd.rows - 1 - r) + '</div>';
+        html += '<div class="ct-axis" style="visibility:hidden">0</div></div>';
+        html += '<div><div id="ct-grid" style="grid-template-columns:repeat(' + rd.cols + ',46px)"></div>';
+        html += '<div style="display:grid;grid-template-columns:repeat(' + rd.cols + ',46px);gap:3px;margin-top:3px">';
+        for (let c = 0; c < rd.cols; c++) html += '<div class="ct-axis">' + c + '</div>';
+        html += '</div></div></div>';
+        html += '<div style="text-align:center;font-size:12px;color:#9cf;margin-top:4px">← X across · Y up ↑</div>';
+        body.innerHTML = html;
+        // fill clickable grid
+        const grid = document.getElementById('ct-grid');
+        let g = '';
+        for (let r = 0; r < rd.rows; r++) for (let c = 0; c < rd.cols; c++) {
+            g += '<div class="ct-cell clickable" onclick="coordPick(' + c + ',' + r + ')">🟫</div>';
+        }
+        grid.innerHTML = g;
+    }
+    function coordPick(c, rowIdx) {
+        const p = codeState.puzzle, rd = codeState.coordList[codeState.coordRound];
+        const y = rd.rows - 1 - rowIdx;
+        if (c === rd.x && y === rd.y) {
+            if (codeState.coordRound >= codeState.coordList.length - 1) { solvePuzzle(p); }
+            else { codeState.coordRound++; ctMsg('💎 Found it! Next treasure…', '#7fffe0'); setTimeout(() => renderCoords(p), 800); }
+        } else {
+            ctMsg('Empty hole! Count X across first, then Y up. Try again.', '#ff7766');
+        }
+    }
+
+    // ================= CONDITIONALS (If / Then) =================
+    function setupCond(p, body, runBtn, resetBtn) {
+        codeState.condRound = 0;
+        codeState.condList = p.rounds.concat(codeState.expert && p.expertRounds ? p.expertRounds : []);
+        renderCond(p);
+    }
+    function renderCond(p) {
+        const body = document.getElementById('ct-body');
+        const rd = codeState.condList[codeState.condRound];
+        let html = '<div style="text-align:center;color:#9cf;margin-bottom:4px">Decision ' + (codeState.condRound + 1) + ' of ' + codeState.condList.length + '</div>';
+        html += '<div class="ct-rule">📋 ' + rd.rule + '</div>';
+        html += '<div style="text-align:center;font-size:14px;color:#bfe;margin:8px 0 2px">The robot\'s sensor sees:</div>';
+        html += '<div class="ct-bigrow"><span class="ct-slot" style="width:auto;padding:0 14px">' + rd.sees + '</span></div>';
+        html += '<div style="text-align:center;font-size:14px;color:#bfe">So what should it DO?</div>';
+        html += '<div class="ct-bigrow">' + rd.choices.map((c, i) => '<button class="ct-choice" style="font-size:18px" id="ct-ch' + i + '" onclick="condPick(' + i + ')">' + c + '</button>').join('') + '</div>';
+        body.innerHTML = html;
+    }
+    function condPick(i) {
+        const p = codeState.puzzle, rd = codeState.condList[codeState.condRound];
+        if (rd.choices[i] === rd.answer) {
+            if (codeState.condRound >= codeState.condList.length - 1) { solvePuzzle(p); }
+            else { codeState.condRound++; ctMsg('✔ Smart choice! Next decision…', '#7fffe0'); setTimeout(() => renderCond(p), 750); }
+        } else {
+            const btn = document.getElementById('ct-ch' + i); if (btn) { btn.classList.add('bad'); setTimeout(() => btn.classList.remove('bad'), 700); }
+            ctMsg('Re-read the IF/THEN rule and match it to what the robot sees.', '#ff7766');
+        }
+    }
+
+    // ================= SORTING (algorithms) =================
+    // Click the crystals from smallest number to biggest, in order.
+    function setupOrder(p, body, runBtn, resetBtn) {
+        codeState.coordRound = 0; // reuse as the round index for sorting
+        codeState.sortList = p.rounds.concat(codeState.expert && p.expertRounds ? p.expertRounds : []);
+        codeState.sortPicked = [];
+        resetBtn.style.display = 'inline-block';
+        resetBtn.onclick = () => { codeState.sortPicked = []; ctMsg(''); renderOrder(p); };
+        renderOrder(p);
+    }
+    function renderOrder(p) {
+        const body = document.getElementById('ct-body');
+        const rd = codeState.sortList[codeState.coordRound];
+        let html = '<div style="text-align:center;color:#9cf;margin-bottom:4px">Round ' + (codeState.coordRound + 1) + ' of ' + codeState.sortList.length + '</div>';
+        html += '<div style="text-align:center;font-size:14px;color:#bfe;margin-bottom:6px">Click SMALLEST → BIGGEST:</div>';
+        html += '<div class="ct-bigrow">';
+        rd.items.forEach((n, i) => {
+            const order = codeState.sortPicked.indexOf(i);
+            if (order >= 0) html += '<span class="ct-choice good" style="position:relative">💎<sub style="font-size:16px">' + n + '</sub><span class="ct-ordernum">' + (order + 1) + '</span></span>';
+            else html += '<button class="ct-choice" onclick="orderPick(' + i + ')">💎<sub style="font-size:16px">' + n + '</sub></button>';
+        });
+        html += '</div>';
+        html += '<div style="text-align:center;font-size:13px;color:#9cf">So far: ' + (codeState.sortPicked.map(idx => rd.items[idx]).join(' → ') || '—') + '</div>';
+        body.innerHTML = html;
+    }
+    function orderPick(i) {
+        const p = codeState.puzzle, rd = codeState.sortList[codeState.coordRound];
+        const sorted = rd.items.slice().sort((a, b) => a - b);
+        const nextNeeded = sorted[codeState.sortPicked.length];
+        if (rd.items[i] === nextNeeded) {
+            codeState.sortPicked.push(i);
+            if (codeState.sortPicked.length === rd.items.length) {
+                if (codeState.coordRound >= codeState.sortList.length - 1) { renderOrder(p); solvePuzzle(p); }
+                else { codeState.coordRound++; codeState.sortPicked = []; ctMsg('✔ Sorted! Next pile…', '#7fffe0'); setTimeout(() => renderOrder(p), 800); }
+            } else { ctMsg('✔ Good — keep going!', '#7fffe0'); renderOrder(p); }
+        } else {
+            ctMsg('That is not the smallest one left — look for a smaller number.', '#ff7766');
         }
     }
 
